@@ -38,6 +38,27 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_summary: {
+        Row: {
+          id: string
+          message_count: number
+          summary_text: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          message_count?: number
+          summary_text: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          message_count?: number
+          summary_text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
