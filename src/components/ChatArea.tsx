@@ -28,7 +28,7 @@ export const ChatArea = ({ conversationId, onNewMessage }: ChatAreaProps) => {
 
   useEffect(() => {
     loadMessages();
-  }, [conversationId]);
+  }, [conversationId]); // Nur bei conversationId-Änderung laden, nicht bei refreshTrigger
 
   useEffect(() => {
     if (scrollRef.current) {

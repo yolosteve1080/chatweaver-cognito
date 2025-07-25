@@ -33,7 +33,7 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
 
   useEffect(() => {
     loadAnalysis();
-  }, [conversationId]);
+  }, [conversationId, refreshTrigger]);
 
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
