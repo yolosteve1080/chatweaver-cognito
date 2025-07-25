@@ -16,10 +16,11 @@ interface Analysis {
 }
 
 interface MetaAnalysisProps {
+  conversationId: string | null;
   refreshTrigger?: number;
 }
 
-export const MetaAnalysis = ({ refreshTrigger }: MetaAnalysisProps) => {
+export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisProps) => {
   const [analysis, setAnalysis] = useState<Analysis>({
     kernideen: [],
     erkenntnisse: [],
@@ -32,7 +33,7 @@ export const MetaAnalysis = ({ refreshTrigger }: MetaAnalysisProps) => {
 
   useEffect(() => {
     loadAnalysis();
-  }, []);
+  }, [conversationId]);
 
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
@@ -50,11 +51,22 @@ export const MetaAnalysis = ({ refreshTrigger }: MetaAnalysisProps) => {
   }, []);
 
   const loadAnalysis = async () => {
+    if (!conversationId) {
+      setAnalysis({
+        kernideen: [],
+        erkenntnisse: [],
+        offene_fragen: [],
+        todos: []
+      });
+      setMessageCount(0);
+      return;
+    }
+
     setIsLoading(true);
     
     try {
       const response = await supabase.functions.invoke('meta', {
-        body: {},
+        body: { conversation_id: conversationId },
       });
 
       if (response.error) {

@@ -18,16 +18,27 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting meta analysis');
+    const { conversation_id } = await req.json();
 
-    // Get chat history from database
+    if (!conversation_id) {
+      return new Response(JSON.stringify({ error: 'conversation_id is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Starting meta analysis for conversation:', conversation_id);
+
+    // Get Supabase client
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
-    
+
+    // Get recent chat messages for this conversation
     const { data: messages, error: dbError } = await supabase
       .from('chat_messages')
       .select('user_message, assistant_message, timestamp')
-      .order('timestamp', { ascending: true })
-      .limit(20); // Last 20 messages
+      .eq('conversation_id', conversation_id)
+      .order('timestamp', { ascending: false })
+      .limit(20);
 
     if (dbError) {
       throw new Error(`Database error: ${dbError.message}`);
@@ -41,6 +52,7 @@ serve(async (req) => {
           offene_fragen: [],
           todos: []
         },
+        message_count: 0,
         success: true
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -49,8 +61,8 @@ serve(async (req) => {
 
     console.log(`Analyzing ${messages.length} messages`);
 
-    // Prepare conversation history for analysis
-    const conversationText = messages.map(msg => 
+    // Prepare conversation history for analysis (reverse to chronological order)
+    const conversationText = messages.reverse().map(msg => 
       `User: ${msg.user_message}\nAssistant: ${msg.assistant_message}`
     ).join('\n\n');
 

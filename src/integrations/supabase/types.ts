@@ -17,6 +17,7 @@ export type Database = {
       chat_messages: {
         Row: {
           assistant_message: string
+          conversation_id: string | null
           created_at: string
           id: string
           timestamp: string
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           assistant_message: string
+          conversation_id?: string | null
           created_at?: string
           id?: string
           timestamp?: string
@@ -31,31 +33,69 @@ export type Database = {
         }
         Update: {
           assistant_message?: string
+          conversation_id?: string | null
           created_at?: string
           id?: string
           timestamp?: string
           user_message?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversation_summary: {
         Row: {
+          conversation_id: string | null
           id: string
           message_count: number
           summary_text: string
           updated_at: string
         }
         Insert: {
+          conversation_id?: string | null
           id?: string
           message_count?: number
           summary_text: string
           updated_at?: string
         }
         Update: {
+          conversation_id?: string | null
           id?: string
           message_count?: number
           summary_text?: string
           updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_summary_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
         }
         Relationships: []
       }

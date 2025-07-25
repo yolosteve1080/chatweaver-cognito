@@ -15,10 +15,11 @@ interface Message {
 }
 
 interface ChatAreaProps {
+  conversationId: string | null;
   onNewMessage?: () => void;
 }
 
-export const ChatArea = ({ onNewMessage }: ChatAreaProps) => {
+export const ChatArea = ({ conversationId, onNewMessage }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +28,7 @@ export const ChatArea = ({ onNewMessage }: ChatAreaProps) => {
 
   useEffect(() => {
     loadMessages();
-  }, []);
+  }, [conversationId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -36,9 +37,15 @@ export const ChatArea = ({ onNewMessage }: ChatAreaProps) => {
   }, [messages]);
 
   const loadMessages = async () => {
+    if (!conversationId) {
+      setMessages([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
+      .eq('conversation_id', conversationId)
       .order('timestamp', { ascending: true });
 
     if (error) {
@@ -54,7 +61,7 @@ export const ChatArea = ({ onNewMessage }: ChatAreaProps) => {
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || !conversationId) return;
 
     const userMessage = inputMessage.trim();
     setInputMessage("");
@@ -62,7 +69,10 @@ export const ChatArea = ({ onNewMessage }: ChatAreaProps) => {
 
     try {
       const response = await supabase.functions.invoke('chat', {
-        body: { message: userMessage },
+        body: { 
+          message: userMessage, 
+          conversation_id: conversationId 
+        },
       });
 
       if (response.error) {
@@ -108,7 +118,7 @@ export const ChatArea = ({ onNewMessage }: ChatAreaProps) => {
       <div className="p-4 border-b">
         <h2 className="text-xl font-semibold flex items-center gap-2">
           <Bot className="h-5 w-5" />
-          Chat mit GPT-4
+          {conversationId ? "Chat mit GPT-4" : "Wählen Sie einen Chat"}
         </h2>
       </div>
 
@@ -158,25 +168,27 @@ export const ChatArea = ({ onNewMessage }: ChatAreaProps) => {
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t">
-        <div className="flex gap-2">
-          <Input
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Schreibe eine Nachricht..."
-            disabled={isLoading}
-            className="flex-1"
-          />
-          <Button 
-            onClick={sendMessage} 
-            disabled={!inputMessage.trim() || isLoading}
-            size="icon"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+      {conversationId && (
+        <div className="p-4 border-t">
+          <div className="flex gap-2">
+            <Input
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Schreibe eine Nachricht..."
+              disabled={isLoading}
+              className="flex-1"
+            />
+            <Button 
+              onClick={sendMessage} 
+              disabled={!inputMessage.trim() || isLoading}
+              size="icon"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </Card>
   );
 };
