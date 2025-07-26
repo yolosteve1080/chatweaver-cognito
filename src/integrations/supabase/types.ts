@@ -54,6 +54,7 @@ export type Database = {
           conversation_id: string | null
           id: string
           message_count: number
+          meta_analysis: Json | null
           summary_text: string
           updated_at: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           conversation_id?: string | null
           id?: string
           message_count?: number
+          meta_analysis?: Json | null
           summary_text: string
           updated_at?: string
         }
@@ -68,6 +70,7 @@ export type Database = {
           conversation_id?: string | null
           id?: string
           message_count?: number
+          meta_analysis?: Json | null
           summary_text?: string
           updated_at?: string
         }

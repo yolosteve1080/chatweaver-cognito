@@ -18,7 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    const { conversation_id } = await req.json();
+    const { conversation_id, categories } = await req.json();
 
     if (!conversation_id) {
       return new Response(JSON.stringify({ error: 'conversation_id is required' }), {
@@ -27,10 +27,28 @@ serve(async (req) => {
       });
     }
 
-    console.log('Starting meta analysis for conversation:', conversation_id);
+    console.log('Starting meta analysis for conversation:', conversation_id, 'categories:', categories);
 
     // Get Supabase client
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+
+    // Load existing analysis from conversation_summary
+    const { data: existingSummary } = await supabase
+      .from('conversation_summary')
+      .select('meta_analysis')
+      .eq('conversation_id', conversation_id)
+      .single();
+
+    let currentAnalysis = {
+      kernideen: [],
+      erkenntnisse: [],
+      offene_fragen: [],
+      todos: []
+    };
+
+    if (existingSummary?.meta_analysis) {
+      currentAnalysis = existingSummary.meta_analysis;
+    }
 
     // Get recent chat messages for this conversation
     const { data: messages, error: dbError } = await supabase
@@ -46,12 +64,7 @@ serve(async (req) => {
 
     if (!messages || messages.length === 0) {
       return new Response(JSON.stringify({
-        analysis: {
-          kernideen: [],
-          erkenntnisse: [],
-          offene_fragen: [],
-          todos: []
-        },
+        analysis: currentAnalysis,
         message_count: 0,
         success: true
       }), {
@@ -59,12 +72,26 @@ serve(async (req) => {
       });
     }
 
+    // If no categories specified, update all
+    const categoriesToUpdate = categories && categories.length > 0 ? categories : ['kernideen', 'erkenntnisse', 'offene_fragen', 'todos'];
+
     console.log(`Analyzing ${messages.length} messages`);
 
     // Prepare conversation history for analysis (reverse to chronological order)
     const conversationText = messages.reverse().map(msg => 
       `User: ${msg.user_message}\nAssistant: ${msg.assistant_message}`
     ).join('\n\n');
+
+    // Create focused prompt based on categories to update
+    const categoryPrompts = {
+      kernideen: "1. Kernideen: Die wichtigsten Konzepte oder Themen",
+      erkenntnisse: "2. Erkenntnisse: Wichtige Erkenntnisse oder Schlussfolgerungen", 
+      offene_fragen: "3. Offene Fragen: Fragen, die noch nicht beantwortet wurden",
+      todos: "4. To-dos: Konkrete Aufgaben oder Aktionen, die identifiziert wurden"
+    };
+
+    const selectedPrompts = categoriesToUpdate.map(cat => categoryPrompts[cat]).join('\n');
+    const responseFields = categoriesToUpdate.map(cat => `"${cat}": ["Punkt 1", "Punkt 2", ...]`).join(',\n  ');
 
     // Call OpenAI for meta analysis
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -78,19 +105,13 @@ serve(async (req) => {
         messages: [
           { 
             role: 'system', 
-            content: `Du bist ein Meta-Analyst für Gespräche. Analysiere den folgenden Chatverlauf und extrahiere:
+            content: `Du bist ein Meta-Analyst für Gespräche. Analysiere den folgenden Chatverlauf und extrahiere NUR die angeforderten Kategorien:
 
-1. Kernideen: Die wichtigsten Konzepte oder Themen
-2. Erkenntnisse: Wichtige Erkenntnisse oder Schlussfolgerungen
-3. Offene Fragen: Fragen, die noch nicht beantwortet wurden
-4. To-dos: Konkrete Aufgaben oder Aktionen, die identifiziert wurden
+${selectedPrompts}
 
-Antworte im folgenden JSON-Format:
+Antworte im folgenden JSON-Format (nur die angeforderten Felder):
 {
-  "kernideen": ["Idee 1", "Idee 2", ...],
-  "erkenntnisse": ["Erkenntnis 1", "Erkenntnis 2", ...],
-  "offene_fragen": ["Frage 1", "Frage 2", ...],
-  "todos": ["Todo 1", "Todo 2", ...]
+  ${responseFields}
 }
 
 Sei präzise und fokussiere dich auf die wichtigsten Punkte. Maximal 5 Punkte pro Kategorie.` 
@@ -112,21 +133,38 @@ Sei präzise und fokussiere dich auf die wichtigsten Punkte. Maximal 5 Punkte pr
     console.log('Got meta analysis from OpenAI');
 
     // Parse JSON response
-    let analysis;
+    let newAnalysis;
     try {
-      analysis = JSON.parse(analysisText);
+      newAnalysis = JSON.parse(analysisText);
     } catch (parseError) {
       console.error('Failed to parse JSON, using fallback');
-      analysis = {
-        kernideen: ["Analyse wird verarbeitet..."],
-        erkenntnisse: ["Erkenntnisse werden extrahiert..."],
-        offene_fragen: ["Fragen werden identifiziert..."],
-        todos: ["Aufgaben werden erfasst..."]
-      };
+      newAnalysis = {};
+      categoriesToUpdate.forEach(cat => {
+        newAnalysis[cat] = ["Analyse wird verarbeitet..."];
+      });
     }
 
+    // Merge new analysis with existing analysis
+    const updatedAnalysis = { ...currentAnalysis };
+    categoriesToUpdate.forEach(category => {
+      if (newAnalysis[category]) {
+        updatedAnalysis[category] = newAnalysis[category];
+      }
+    });
+
+    // Save updated analysis to database
+    await supabase
+      .from('conversation_summary')
+      .upsert({
+        conversation_id,
+        meta_analysis: updatedAnalysis,
+        message_count: messages.length,
+        summary_text: 'Meta-Analyse',
+        updated_at: new Date().toISOString()
+      });
+
     return new Response(JSON.stringify({ 
-      analysis,
+      analysis: updatedAnalysis,
       success: true,
       message_count: messages.length
     }), {

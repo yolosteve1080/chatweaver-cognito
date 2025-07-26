@@ -28,27 +28,13 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
     todos: []
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState<string[]>([]);
   const [messageCount, setMessageCount] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
     loadAnalysis();
-  }, [conversationId, refreshTrigger]);
-
-  useEffect(() => {
-    if (refreshTrigger && refreshTrigger > 0) {
-      loadAnalysis();
-    }
-  }, [refreshTrigger]);
-
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadAnalysis();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
+  }, [conversationId]);
 
   const loadAnalysis = async () => {
     if (!conversationId) {
@@ -89,6 +75,57 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateAnalysisCategory = async (categories: string[]) => {
+    if (!conversationId) return;
+
+    setLoadingCategories(categories);
+    
+    try {
+      const response = await supabase.functions.invoke('meta', {
+        body: { 
+          conversation_id: conversationId,
+          categories: categories 
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.error);
+      }
+
+      setAnalysis(response.data.analysis);
+      setMessageCount(response.data.message_count || 0);
+
+      const categoryNames = categories.map(cat => {
+        switch(cat) {
+          case 'kernideen': return 'Kernideen';
+          case 'erkenntnisse': return 'Erkenntnisse';
+          case 'offene_fragen': return 'Offene Fragen';
+          case 'todos': return 'To-dos';
+          default: return cat;
+        }
+      }).join(', ');
+
+      toast({
+        title: "Aktualisierung erfolgreich",
+        description: `${categoryNames} wurden aktualisiert`,
+      });
+
+    } catch (error) {
+      console.error('Error updating meta analysis:', error);
+      toast({
+        title: "Fehler",
+        description: "Meta-Analyse konnte nicht aktualisiert werden",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingCategories([]);
     }
   };
 
@@ -188,12 +225,88 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
           </div>
         ) : (
           <div className="space-y-6">
-            {isLoading && (
-              <div className="text-center py-4">
-                <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Analysiere Gespräch...</p>
+            {/* Update Buttons */}
+            <div className="space-y-3">
+              <h3 className="font-medium text-sm">Analyse aktualisieren:</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateAnalysisCategory(['kernideen'])}
+                  disabled={loadingCategories.includes('kernideen')}
+                  className="justify-start"
+                >
+                  {loadingCategories.includes('kernideen') ? (
+                    <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                  ) : (
+                    <Lightbulb className="h-3 w-3 mr-2" />
+                  )}
+                  Kernideen
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateAnalysisCategory(['erkenntnisse'])}
+                  disabled={loadingCategories.includes('erkenntnisse')}
+                  className="justify-start"
+                >
+                  {loadingCategories.includes('erkenntnisse') ? (
+                    <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                  ) : (
+                    <Brain className="h-3 w-3 mr-2" />
+                  )}
+                  Erkenntnisse
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateAnalysisCategory(['offene_fragen'])}
+                  disabled={loadingCategories.includes('offene_fragen')}
+                  className="justify-start"
+                >
+                  {loadingCategories.includes('offene_fragen') ? (
+                    <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                  ) : (
+                    <HelpCircle className="h-3 w-3 mr-2" />
+                  )}
+                  Offene Fragen
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateAnalysisCategory(['todos'])}
+                  disabled={loadingCategories.includes('todos')}
+                  className="justify-start"
+                >
+                  {loadingCategories.includes('todos') ? (
+                    <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                  ) : (
+                    <CheckSquare className="h-3 w-3 mr-2" />
+                  )}
+                  To-dos
+                </Button>
               </div>
-            )}
+              
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => updateAnalysisCategory(['kernideen', 'erkenntnisse', 'offene_fragen', 'todos'])}
+                disabled={loadingCategories.length > 0}
+                className="w-full"
+              >
+                {loadingCategories.length > 0 ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Alles aktualisieren
+              </Button>
+            </div>
+
+            <Separator />
 
             {renderSection(
               "Kernideen",
@@ -234,7 +347,7 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
 
       <div className="p-4 border-t bg-muted/30">
         <p className="text-xs text-muted-foreground text-center">
-          Automatische Aktualisierung alle 30 Sekunden
+          Manuelle Aktualisierung verfügbar
         </p>
       </div>
     </Card>
