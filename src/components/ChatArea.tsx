@@ -69,10 +69,13 @@ export const ChatArea = ({ conversationId, onNewMessage }: ChatAreaProps) => {
 
     try {
       const response = await supabase.functions.invoke('chat', {
-        body: { 
+        body: JSON.stringify({ 
           message: userMessage, 
           conversation_id: conversationId 
-        },
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (response.error) {

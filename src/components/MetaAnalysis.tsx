@@ -124,10 +124,13 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
     
     try {
       const response = await supabase.functions.invoke('meta', {
-        body: { 
+        body: JSON.stringify({ 
           conversation_id: conversationId,
           categories: categories 
-        },
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (response.error) {
