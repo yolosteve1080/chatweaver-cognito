@@ -102,6 +102,33 @@ export type Database = {
         }
         Relationships: []
       }
+      meta_points: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          hidden: boolean
+          id: string
+          text: string
+          type: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          hidden?: boolean
+          id?: string
+          text: string
+          type: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          hidden?: boolean
+          id?: string
+          text?: string
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

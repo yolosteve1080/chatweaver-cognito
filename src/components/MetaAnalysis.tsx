@@ -7,12 +7,21 @@ import { Separator } from "@/components/ui/separator";
 import { Brain, Download, RefreshCw, Lightbulb, HelpCircle, CheckSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { MetaPointMenu } from "./MetaPointMenu";
+import { HiddenPointsDialog } from "./HiddenPointsDialog";
+
+interface MetaPoint {
+  id: string;
+  type: string;
+  text: string;
+  hidden: boolean;
+}
 
 interface Analysis {
-  kernideen: string[];
-  erkenntnisse: string[];
-  offene_fragen: string[];
-  todos: string[];
+  kernideen: MetaPoint[];
+  erkenntnisse: MetaPoint[];
+  offene_fragen: MetaPoint[];
+  todos: MetaPoint[];
 }
 
 interface MetaAnalysisProps {
@@ -51,20 +60,50 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
     setIsLoading(true);
     
     try {
-      const response = await supabase.functions.invoke('meta', {
-        body: { conversation_id: conversationId },
+      // Load points from meta_points table
+      const { data: points, error: pointsError } = await supabase
+        .from('meta_points')
+        .select('id, type, text, hidden')
+        .eq('conversation_id', conversationId)
+        .eq('hidden', false)
+        .order('created_at', { ascending: true });
+
+      if (pointsError) throw pointsError;
+
+      // Group points by type
+      const groupedPoints: Analysis = {
+        kernideen: [],
+        erkenntnisse: [],
+        offene_fragen: [],
+        todos: []
+      };
+
+      points?.forEach(point => {
+        switch (point.type) {
+          case 'kernidee':
+            groupedPoints.kernideen.push(point);
+            break;
+          case 'erkenntnis':
+            groupedPoints.erkenntnisse.push(point);
+            break;
+          case 'frage':
+            groupedPoints.offene_fragen.push(point);
+            break;
+          case 'todo':
+            groupedPoints.todos.push(point);
+            break;
+        }
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
+      setAnalysis(groupedPoints);
 
-      if (!response.data.success) {
-        throw new Error(response.data.error);
-      }
+      // Get message count
+      const { data: messages } = await supabase
+        .from('chat_messages')
+        .select('id')
+        .eq('conversation_id', conversationId);
 
-      setAnalysis(response.data.analysis);
-      setMessageCount(response.data.message_count || 0);
+      setMessageCount(messages?.length || 0);
 
     } catch (error) {
       console.error('Error loading meta analysis:', error);
@@ -99,8 +138,8 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
         throw new Error(response.data.error);
       }
 
-      setAnalysis(response.data.analysis);
-      setMessageCount(response.data.message_count || 0);
+      // Reload analysis after update
+      loadAnalysis();
 
       const categoryNames = categories.map(cat => {
         switch(cat) {
@@ -155,7 +194,7 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
     });
   };
 
-  const renderSection = (title: string, items: string[], icon: React.ReactNode, color: string) => (
+  const renderSection = (title: string, items: MetaPoint[], icon: React.ReactNode, color: string) => (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         {icon}
@@ -171,12 +210,17 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
             Noch keine {title.toLowerCase()} identifiziert
           </p>
         ) : (
-          items.map((item, index) => (
+          items.map((item) => (
             <div 
-              key={index}
-              className={`p-3 rounded-lg border-l-4 bg-muted/50 ${color}`}
+              key={item.id}
+              className={`p-3 rounded-lg border-l-4 bg-muted/50 ${color} flex items-start justify-between`}
             >
-              <p className="text-sm">{item}</p>
+              <p className="text-sm flex-1">{item.text}</p>
+              <MetaPointMenu 
+                pointId={item.id} 
+                isHidden={item.hidden} 
+                onUpdate={loadAnalysis} 
+              />
             </div>
           ))
         )}
@@ -225,6 +269,9 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Hidden Points Dialog */}
+            <HiddenPointsDialog conversationId={conversationId} onUpdate={loadAnalysis} />
+            
             {/* Update Buttons */}
             <div className="space-y-3">
               <h3 className="font-medium text-sm">Analyse aktualisieren:</h3>

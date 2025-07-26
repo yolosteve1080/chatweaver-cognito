@@ -152,6 +152,36 @@ Sei präzise und fokussiere dich auf die wichtigsten Punkte. Maximal 5 Punkte pr
       }
     });
 
+    // Save individual points to meta_points table
+    for (const category of categoriesToUpdate) {
+      if (updatedAnalysis[category] && Array.isArray(updatedAnalysis[category])) {
+        // Delete existing points for this category and conversation
+        await supabase
+          .from('meta_points')
+          .delete()
+          .eq('conversation_id', conversation_id)
+          .eq('type', category === 'kernideen' ? 'kernidee' : 
+                     category === 'erkenntnisse' ? 'erkenntnis' :
+                     category === 'offene_fragen' ? 'frage' : 'todo');
+
+        // Insert new points
+        const pointsToInsert = updatedAnalysis[category].map((text: string) => ({
+          conversation_id,
+          type: category === 'kernideen' ? 'kernidee' : 
+                category === 'erkenntnisse' ? 'erkenntnis' :
+                category === 'offene_fragen' ? 'frage' : 'todo',
+          text,
+          hidden: false
+        }));
+
+        if (pointsToInsert.length > 0) {
+          await supabase
+            .from('meta_points')
+            .insert(pointsToInsert);
+        }
+      }
+    }
+
     // Save updated analysis to database
     await supabase
       .from('conversation_summary')
