@@ -216,12 +216,11 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
               className={`p-3 rounded-lg border-l-4 bg-muted/50 ${color} flex items-start justify-between gap-2`}
             >
               <p className="text-sm flex-1">{item.text}</p>
-              {/* Temporarily comment out menu to test */}
-              {/* <MetaPointMenu 
+              <MetaPointMenu 
                 pointId={item.id} 
                 isHidden={item.hidden} 
                 onUpdate={loadAnalysis} 
-              /> */}
+              />
             </div>
           ))
         )}
@@ -270,8 +269,8 @@ export const MetaAnalysis = ({ conversationId, refreshTrigger }: MetaAnalysisPro
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Hidden Points Dialog - temporarily commented out to test */}
-            {/* <HiddenPointsDialog conversationId={conversationId} onUpdate={loadAnalysis} /> */}
+            {/* Hidden Points Dialog */}
+            <HiddenPointsDialog conversationId={conversationId} onUpdate={loadAnalysis} />
             
             {/* Update Buttons */}
             <div className="space-y-3">
