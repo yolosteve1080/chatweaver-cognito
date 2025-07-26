@@ -155,14 +155,16 @@ Sei präzise und fokussiere dich auf die wichtigsten Punkte. Maximal 5 Punkte pr
     // Save individual points to meta_points table
     for (const category of categoriesToUpdate) {
       if (updatedAnalysis[category] && Array.isArray(updatedAnalysis[category])) {
-        // Delete existing points for this category and conversation
+        // Only delete NON-HIDDEN points for this category and conversation
+        // This preserves hidden points that users manually hid
         await supabase
           .from('meta_points')
           .delete()
           .eq('conversation_id', conversation_id)
           .eq('type', category === 'kernideen' ? 'kernidee' : 
                      category === 'erkenntnisse' ? 'erkenntnis' :
-                     category === 'offene_fragen' ? 'frage' : 'todo');
+                     category === 'offene_fragen' ? 'frage' : 'todo')
+          .eq('hidden', false);  // Only delete visible points
 
         // Insert new points
         const pointsToInsert = updatedAnalysis[category].map((text: string) => ({

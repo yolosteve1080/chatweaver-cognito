@@ -37,6 +37,11 @@ export const HiddenPointsDialog = ({ conversationId, onUpdate }: HiddenPointsDia
       setHiddenPoints(data || []);
     } catch (error) {
       console.error('Error loading hidden points:', error);
+      toast({
+        title: "Fehler",
+        description: "Versteckte Punkte konnten nicht geladen werden",
+        variant: "destructive",
+      });
     }
   };
 
