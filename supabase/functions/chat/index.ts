@@ -18,23 +18,28 @@ serve(async (req) => {
   }
 
   try {
-    const requestBody = await req.text();
-    let parsedBody;
-    
+    // Parse request body directly
+    let requestData;
     try {
-      parsedBody = JSON.parse(requestBody);
-    } catch (parseError) {
-      console.error('Failed to parse request body as JSON:', parseError);
-      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      requestData = await req.json();
+    } catch (error) {
+      console.error('JSON parsing error:', error);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid JSON format',
+        success: false 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    
-    const { message, conversation_id } = parsedBody;
+
+    const { message, conversation_id } = requestData;
     
     if (!message || !conversation_id) {
-      return new Response(JSON.stringify({ error: 'Message and conversation_id are required' }), {
+      return new Response(JSON.stringify({ 
+        error: 'Message and conversation_id are required',
+        success: false 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
