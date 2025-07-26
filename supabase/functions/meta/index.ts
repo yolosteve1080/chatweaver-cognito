@@ -18,7 +18,20 @@ serve(async (req) => {
   }
 
   try {
-    const { conversation_id, categories } = await req.json();
+    const requestBody = await req.text();
+    let parsedBody;
+    
+    try {
+      parsedBody = JSON.parse(requestBody);
+    } catch (parseError) {
+      console.error('Failed to parse request body as JSON:', parseError);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    const { conversation_id, categories } = parsedBody;
 
     if (!conversation_id) {
       return new Response(JSON.stringify({ error: 'conversation_id is required' }), {
